@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>법률 3지선다 퀴즈</title>
+    
+    <!-- 폰트 변경: Pretendard 폰트 로드 -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Tailwind CSS CDN 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Pretendard 폰트 설정 적용 */
+        body {
+            font-family: 'Pretendard', 'Malgun Gothic', 'Dotum', sans-serif;
+            background-color: #e5f4f7; /* 아주 연한 청록색 배경 */
+            color: #1f2937;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .card {
+            background-color: #ffffff;
+            /* 더 깊은 그림자로 모던한 느낌 강조 */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        /* 답변 버튼 스타일: Black Text를 위해 배경을 밝게 조정 */
+        .btn-choice {
+            background-color: #d1eaea; /* Light Teal for black text */
+            transition: all 0.2s ease-in-out;
+            color: #000000; /* Black text for maximum visibility */
+            font-weight: 700; /* Increased weight for visibility */
+        }
+        .btn-choice:hover:not(:disabled) {
+            background-color: #aae0e0; /* Darker light teal on hover */
+            transform: translateY(-2px); /* 약간의 리프트 효과 */
+        }
+        
+        /* 선택된 정답/오답 버튼: 배경이 짙으므로 텍스트는 흰색을 유지해야 가독성이 좋습니다. */
+        .btn-correct {
+            background-color: #0d9488; /* Teal-600 (Dark) */
+            color: #ffffff; /* White text for contrast on dark background */
+        }
+        .btn-incorrect {
+            background-color: #dc2626; /* Red (Dark) */
+            color: #ffffff; /* White text for contrast on dark background */
+        }
+        
+        /* 정답 선택 시, 정답을 제외한 나머지 선택지를 가장 명확하게 표시하는 스타일 */
+        .btn-subdued {
+            background-color: #f3f4f6; /* 배경은 흐릿하게 유지 */
+            color: #000000; /* 텍스트 색상을 절대 검은색으로 설정하여 최대 대비 확보 */
+            font-weight: 700; /* 폰트 굵기를 더 두껍게 설정하여 가독성 강화 */
+            box-shadow: none;
+            cursor: default;
+        }
+
+        .btn-next {
+            background-color: #0d9488; /* Teal-600 */
+            transition: background-color 0.2s;
+        }
+        .btn-next:hover {
+            background-color: #0f766e; /* Teal-700 */
+        }
+        .btn-review {
+            background-color: #5b21b6; /* Violet-700 */
+            transition: background-color 0.2s;
+        }
+        .btn-review:hover {
+            background-color: #4c1d95; /* Violet-800 */
+        }
+
+        /* 로딩 스피너 애니메이션 */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0d9488; /* Teal 색상 스피너 */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="card p-6 sm:p-10 w-full max-w-lg mx-4 rounded-xl">
+        <h1 class="text-3xl font-extrabold mb-6 text-center text-teal-800">법률 3지선다 퀴즈</h1>
+
+        <!-- 점수 및 복습 문제 표시 영역 -->
+        <div class="flex flex-col sm:flex-row justify-between items-stretch gap-3 mb-6">
+            <div class="flex-1 p-4 bg-teal-100 rounded-lg flex items-center justify-between shadow-inner">
+                <span class="text-lg font-bold text-teal-800">점수:</span>
+                <span id="scoreDisplay" class="text-3xl font-extrabold text-teal-600">0 / 0</span>
+            </div>
+            <div class="w-full sm:w-auto p-4 bg-gray-100 rounded-lg flex items-center justify-between shadow-inner">
+                <span class="text-sm font-medium text-gray-700">복습 문제:</span>
+                <span id="reviewCount" class="text-xl font-bold text-gray-600">0개</span>
+            </div>
+        </div>
+
+        <!-- 퀴즈 표시 영역 (문제, 로딩) -->
+        <!-- Quiz Box를 감싸서 전체를 한 번에 숨기거나 표시할 수 있도록 합니다. -->
+        <div id="quizBox" class="bg-white p-5 rounded-xl border-2 border-teal-200 min-h-[150px] flex flex-col justify-center mb-6 shadow-md">
+            <p id="questionText" class="text-xl font-semibold text-black text-center">
+                퀴즈를 시작하려면 '시작하기' 버튼을 누르세요.
+            </p>
+            <!-- 로딩 인디케이터 -->
+            <div id="loadingIndicator" class="hidden flex flex-col justify-center items-center py-5">
+                <div class="spinner"></div>
+                <span class="mt-3 text-teal-600 font-medium">문제 생성 중... (잠시만 기다려 주세요)</span>
+            </div>
+        </div>
+
+        <!-- 정답 확인 및 해설 영역 (처음에는 숨김) -->
+        <div id="feedbackContainer" class="hidden p-4 rounded-lg mt-4 shadow-inner" role="alert">
+            <p id="feedbackMessage" class="font-bold mb-2"></p>
+            <p id="explanationText" class="text-sm text-gray-700"></p>
+        </div>
+
+        <!-- 답변 버튼 영역 (3지선다형) -->
+        <div class="grid grid-cols-1 gap-4" id="answerButtons">
+            <!-- '1' 버튼 -->
+            <button id="btnA" class="btn-choice py-3 font-semibold rounded-lg shadow-lg transition duration-150" disabled>
+                1. 
+            </button>
+            <!-- '2' 버튼 -->
+            <button id="btnB" class="btn-choice py-3 font-semibold rounded-lg shadow-lg transition duration-150" disabled>
+                2. 
+            </button>
+            <!-- '3' 버튼 -->
+            <button id="btnC" class="btn-choice py-3 font-semibold rounded-lg shadow-lg transition duration-150" disabled>
+                3. 
+            </button>
+        </div>
+        
+        <!-- 복습 문제 목록 표시 영역 (새로 추가됨) -->
+        <div id="reviewListContainer" class="hidden mt-6">
+            <h2 class="text-2xl font-bold text-violet-700 mb-4 border-b-4 border-violet-200 pb-2">❌ 틀린 문제 목록</h2>
+            <div id="reviewItems" class="space-y-6">
+                <!-- 복습 문제가 여기에 렌더링됩니다 -->
+            </div>
+        </div>
+
+        <!-- 컨트롤 버튼 영역 -->
+        <div class="flex flex-col gap-3 mt-6">
+            <!-- 다음 문제/시작 버튼 -->
+            <button id="btnNext" class="btn-next w-full py-3 text-white font-bold rounded-lg shadow-xl transition duration-150 transform hover:scale-[1.01]">
+                시작하기
+            </button>
+            
+            <!-- 복습 모드 버튼 (초기에는 숨김/비활성화) -->
+            <button id="btnReviewMode" class="btn-review w-full py-3 text-white font-bold rounded-lg shadow-xl transition duration-150 transform hover:scale-[1.01] hidden" disabled>
+                복습 모드 시작
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // API Key (Canvas 환경에서 자동으로 제공됩니다)
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // 로컬 스토리지 키
+        const REVIEW_STORAGE_KEY = 'legalReviewQuestions';
+        // 이미 출제된 문제 기록을 저장할 키 (중복 방지용)
+        const ASKED_HISTORY_KEY = 'legalAskedHistory';
+
+        // 정적 대체 퀴즈 데이터 (로컬 실행 환경 또는 API 실패/반복 출제 시 사용)
+        // 기존 5개에서 10개로 대폭 확장하여 새로운 문제가 없을 가능성을 줄임
+        const STATIC_QUIZ_DATA = [
+            {
+                "question": "계약서에 서명하지 않고 구두로 합의한 경우에도 법적 효력이 발생하나요?",
+                "options": ["1. 절대 발생하지 않는다.", "2. 구두 합의만으로도 법적 효력이 발생할 수 있다.", "3. 공증을 받아야만 효력이 발생한다."],
+                "answer": "2",
+                "explanation": "대부분의 계약은 구두로 합의해도 법적 효력이 발생합니다(낙성계약). 다만, 부동산 매매, 보증 계약 등 일부 중요한 계약은 서면을 요구하는 경우가 있습니다. 구두 계약의 문제는 입증이 어렵다는 점입니다."
+            },
+            {
+                "question": "만 19세 미만의 미성년자가 부모 동의 없이 계약을 체결했을 때, 이 계약의 효력은 어떻게 되나요?",
+                "options": ["1. 당연히 무효이다.", "2. 미성년자 측에서 취소할 수 있다.", "3. 부모가 계약 내용을 알았다면 유효하다."],
+                "answer": "2",
+                "explanation": "미성년자가 법정대리인(부모 등)의 동의 없이 체결한 계약은 원칙적으로 미성년자 본인이나 법정대리인이 '취소'할 수 있습니다. 이는 미성년자를 보호하기 위한 민법의 규정입니다."
+            },
+            {
+                "question": "길거리에서 주운 지갑을 경찰서에 신고하지 않고 자신이 사용하면 어떤 죄에 해당하나요?",
+                "options": ["1. 점유이탈물횡령죄", "2. 절도죄", "3. 무죄이다."],
+                "answer": "1",
+                "explanation": "점유이탈물횡령죄는 타인이 잃어버린 물건을 습득하고도 소유자에게 돌려주지 않거나 경찰에 신고하지 않고 영득할 때 성립하는 범죄입니다. 절도죄는 타인의 '점유' 하에 있는 물건을 훔칠 때 성립합니다."
+            },
+            {
+                "question": "인터넷 게시판에 타인의 명예를 훼손하는 내용을 게시했을 경우, 사실이라도 처벌받을 수 있나요?",
+                "options": ["1. 사실이면 명예훼손죄로 처벌받지 않는다.", "2. 사실이더라도 공익과 무관하면 처벌받을 수 있다.", "3. 진실한 사실이면 무조건 무죄이다."],
+                "answer": "2",
+                "explanation": "형법상 명예훼손죄는 '공연히 사실을 적시하여' 사람의 명예를 훼손할 경우 성립할 수 있습니다. 사실이라도 처벌받을 수 있으며, 이는 진실한 사실 적시 명예훼손죄에 해당합니다. 다만, 그 사실이 오로지 공공의 이익에 관한 것일 때만 위법성이 조각되어 처벌받지 않습니다."
+            },
+            {
+                "question": "아파트 층간소음 문제로 고통받을 때, 법적으로 소송 외에 해결할 수 있는 공식적인 절차가 있나요?",
+                "options": ["1. 소송 외에는 사적으로 해결해야 한다.", "2. 환경분쟁조정위원회에 조정을 신청할 수 있다.", "3. 오직 경찰에 신고하는 것만 가능하다."],
+                "answer": "2",
+                "explanation": "층간소음 문제의 경우, 민사소송 이외에도 중앙환경분쟁조정위원회나 지방환경분쟁조정위원회에 조정 신청을 통해 비교적 빠르고 간편하게 피해 배상이나 소음 저감 조치 등을 요구할 수 있습니다."
+            },
+            {
+                "question": "아파트 공용 복도에 개인 자전거를 장기간 보관하는 것은 법적으로 문제가 되나요?",
+                "options": ["1. 개인 물품이라 문제가 없다.", "2. 소방 관련 법규 위반으로 과태료 대상이 될 수 있다.", "3. 관리소의 허가를 받으면 문제가 없다."],
+                "answer": "2",
+                "explanation": "아파트 공용 공간(복도, 계단)에 물건을 쌓아두는 행위는 소방시설 설치 및 관리에 관한 법률 위반으로 간주되어 과태료 처분 대상이 될 수 있습니다. 이는 화재 발생 시 피난에 지장을 줄 수 있기 때문입니다."
+            },
+            {
+                "question": "타인의 초상권이 침해되는 사진을 인터넷에 올렸을 경우, 피해자가 형사 고소를 할 수 있나요?",
+                "options": ["1. 초상권 침해는 형사 처벌 대상이므로 고소 가능하다.", "2. 일반적으로 초상권 침해는 민사상 손해배상 청구의 대상이다.", "3. 사진이 훼손되지 않았다면 법적 문제가 없다."],
+                "answer": "2",
+                "explanation": "초상권은 헌법상 행복추구권의 한 내용으로서 사법상 권리(민사)이며, 형사 처벌 대상이 되는 별도의 법규(예: 정보통신망법상 명예훼손 등)에 해당하지 않는 한, 일반적으로 민사상 손해배상 청구 또는 게시물 삭제 요청(가처분)을 통해 해결하게 됩니다."
+            },
+            {
+                "question": "SNS에서 특정인을 사칭하여 메시지를 보내거나 활동한 행위는 어떤 법률에 의해 처벌될 수 있나요?",
+                "options": ["1. 주거침입죄가 적용된다.", "2. 정보통신망 이용촉진 및 정보보호 등에 관한 법률 위반으로 처벌될 수 있다.", "3. 사칭 행위는 법적 처벌 대상이 아니다."],
+                "answer": "2",
+                "explanation": "정보통신망법 제49조의7(부정 접근 및 사칭 금지)에 따라, 정보통신망을 이용하여 타인을 사칭하여 정보를 게시하거나 송신하는 행위는 처벌 대상이 될 수 있습니다. 이는 개인정보 보호 및 명예 보호를 위한 것입니다."
+            },
+            {
+                "question": "친구가 실수로 내 물건을 부쉈을 때, 손해배상 청구는 몇 년 안에 해야 하나요?",
+                "options": ["1. 손해 및 가해자를 안 날로부터 3년, 불법행위가 있은 날로부터 10년이다.", "2. 오직 1년 이내에만 청구할 수 있다.", "3. 20년 이내에는 언제든 가능하다."],
+                "answer": "1",
+                "explanation": "민법 제766조에 따라 불법행위로 인한 손해배상청구권은 피해자나 그 법정대리인이 손해 및 가해자를 안 날로부터 3년간 행사하지 않거나, 불법행위를 한 날로부터 10년을 경과하면 시효로 소멸합니다."
+            },
+            {
+                "question": "온라인 쇼핑몰에서 구매한 물건을 단순 변심으로 반품할 때, 왕복 배송비를 누가 부담해야 하나요?",
+                "options": ["1. 판매자가 왕복 배송비를 모두 부담해야 한다.", "2. 소비자가 왕복 배송비를 모두 부담해야 한다.", "3. 소비자와 판매자가 반반씩 부담해야 한다."],
+                "answer": "2",
+                "explanation": "전자상거래 등에서의 소비자보호에 관한 법률에 따라 소비자의 단순 변심으로 인한 청약철회(환불)의 경우, 상품 반환에 필요한 비용(왕복 배송비 등)은 소비자가 부담하는 것이 원칙입니다."
+            }
+        ];
+
+
+        // 퀴즈 데이터 및 상태 변수
+        let totalQuestions = 0; 
+        let availableQuestions = []; 
+        let currentQuestion = null; 
+        let score = 0;
+        let isAnswered = false; 
+        let isReviewMode = false; // 복습 모드 상태
+
+        // DOM 요소 캐싱
+        const quizBox = document.getElementById('quizBox'); // 퀴즈 질문을 감싸는 박스
+        const questionText = document.getElementById('questionText');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const answerButtonsContainer = document.getElementById('answerButtons'); 
+        const btnNext = document.getElementById('btnNext');
+        const btnReviewMode = document.getElementById('btnReviewMode'); // 복습 모드 버튼
+        const reviewCountDisplay = document.getElementById('reviewCount'); // 복습 문제 개수 표시
+        const feedbackContainer = document.getElementById('feedbackContainer');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const explanationText = document.getElementById('explanationText');
+        
+        // 새로 추가된 복습 목록 요소
+        const reviewListContainer = document.getElementById('reviewListContainer');
+        const reviewItems = document.getElementById('reviewItems');
+
+        // 3지선다 버튼 배열
+        const choiceButtons = [
+            { id: 'btnA', element: document.getElementById('btnA'), choice: '1' },
+            { id: 'btnB', element: document.getElementById('btnB'), choice: '2' },
+            { id: 'btnC', element: document.getElementById('btnC'), choice: '3' }
+        ];
+
+        /**
+         * 로딩 인디케이터를 보여주고 퀴즈 요소를 숨깁니다.
+         */
+        function showLoading() {
+            quizBox.classList.remove('hidden'); // 로딩을 위해 퀴즈 박스 자체는 표시
+            questionText.classList.add('hidden');
+            answerButtonsContainer.classList.add('hidden');
+            reviewListContainer.classList.add('hidden'); // 복습 목록 숨김
+            loadingIndicator.classList.remove('hidden');
+            btnNext.disabled = true;
+            btnReviewMode.disabled = true;
+            btnNext.textContent = "문제 생성 중...";
+            hideFeedback();
+        }
+
+        /**
+         * 로딩 인디케이터를 숨기고 퀴즈 요소를 보여줍니다.
+         */
+        function hideLoading() {
+            loadingIndicator.classList.add('hidden');
+            questionText.classList.remove('hidden');
+            answerButtonsContainer.classList.remove('hidden');
+            quizBox.classList.remove('hidden'); // 퀴즈 박스 표시
+            btnNext.disabled = false;
+            btnReviewMode.disabled = false;
+        }
+        
+        // =================================================================
+        // 로컬 스토리지 관리 함수 (복습 및 중복 방지)
+        // =================================================================
+
+        /**
+         * 로컬 스토리지에서 복습 문제 목록(배열)을 가져옵니다.
+         * @returns {Array} 복습 문제 배열
+         */
+        function getReviewQuestions() {
+            try {
+                const stored = localStorage.getItem(REVIEW_STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                console.error("로컬 스토리지에서 복습 문제를 불러오는 데 실패했습니다.", e);
+                return [];
+            }
+        }
+        
+        /**
+         * 틀린 문제를 로컬 스토리지 목록(배열)에 저장합니다. (중복 방지)
+         * @param {object} question - 틀린 문제 객체
+         */
+        function saveIncorrectQuestion(question) {
+            let questions = getReviewQuestions();
+            // 질문 내용이 완전히 일치하는 경우에만 중복으로 간주하여 저장하지 않습니다.
+            if (!questions.some(q => q.question.trim() === question.question.trim())) {
+                questions.push(question);
+                try {
+                    localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(questions));
+                    updateReviewModeUI();
+                } catch (e) {
+                    console.error("로컬 스토리지에 복습 문제를 저장하는 데 실패했습니다.", e);
+                }
+            }
+        }
+
+        /**
+         * 이미 출제된 문제의 질문 텍스트 목록을 가져옵니다.
+         * @returns {Array<string>} 질문 텍스트 배열
+         */
+        function getAskedHistory() {
+            try {
+                const stored = localStorage.getItem(ASKED_HISTORY_KEY);
+                // 최대 20개의 질문만 유지
+                return stored ? JSON.parse(stored).slice(0, 20) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        /**
+         * 새로 출제된 문제들을 기록에 추가하고 기록을 업데이트합니다.
+         * @param {Array<object>} newQuestions - 새로 출제된 문제 객체 배열
+         */
+        function updateAskedHistory(newQuestions) {
+            let history = getAskedHistory();
+            const newTexts = newQuestions.map(q => q.question.trim());
+
+            // 새 질문을 앞에 추가
+            history = [...newTexts, ...history];
+
+            // 중복 제거 및 최대 20개로 제한
+            history = Array.from(new Set(history)).slice(0, 20); 
+
+            try {
+                localStorage.setItem(ASKED_HISTORY_KEY, JSON.stringify(history));
+            } catch (e) {
+                console.error("출제 기록 저장 실패", e);
+            }
+        }
+        
+        /**
+         * 복습 모드 UI (문제 수)를 업데이트하고 버튼 상태를 조정합니다.
+         */
+        function updateReviewModeUI() {
+            const count = getReviewQuestions().length;
+            reviewCountDisplay.textContent = `${count}개`;
+            
+            // 일반 모드이고, 저장된 문제가 있을 때만 복습 모드 버튼을 표시/활성화합니다.
+            if (!isReviewMode && count > 0) {
+                 btnReviewMode.disabled = false;
+                 btnReviewMode.classList.remove('hidden');
+                 btnReviewMode.textContent = `복습 모드 시작 (${count}개)`;
+            } else if (!isReviewMode) {
+                 btnReviewMode.classList.add('hidden');
+            }
+        }
+        
+        /**
+         * 복습 문제 목록을 렌더링하여 화면에 표시합니다. (목록형)
+         */
+        function renderReviewList() {
+            const reviewData = getReviewQuestions();
+            
+            // 퀴즈 UI 숨기기
+            quizBox.classList.add('hidden');
+            answerButtonsContainer.classList.add('hidden');
+            hideFeedback();
+            
+            reviewItems.innerHTML = ''; // 기존 목록 초기화
+            reviewListContainer.classList.remove('hidden'); // 목록 컨테이너 표시
+
+            if (reviewData.length === 0) {
+                reviewItems.innerHTML = '<p class="text-center text-gray-600 p-8 bg-gray-50 rounded-lg shadow-inner">현재 저장된 복습 문제가 없습니다. 일반 퀴즈를 풀어보세요!</p>';
+                return;
+            }
+
+            reviewData.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'p-5 border-2 border-red-200 bg-white rounded-xl shadow-lg space-y-3';
+
+                // 정답 텍스트를 찾습니다.
+                const correctAnswerText = item.options[parseInt(item.answer) - 1];
+                
+                // 각 항목의 HTML 구조: 문제, 정답(강조), 해설
+                itemDiv.innerHTML = `
+                    <p class="text-lg font-extrabold text-violet-800 border-b-2 border-red-100 pb-2">문제 ${index + 1}.</p>
+                    <p class="text-md font-semibold text-black">${item.question}</p>
+                    
+                    <div class="p-3 bg-teal-50 rounded-lg">
+                        <p class="text-sm font-bold text-teal-800 mb-1">✅ 정답:</p>
+                        <p class="text-sm text-teal-700 font-extrabold">${correctAnswerText}</p>
+                    </div>
+
+                    <div class="pt-3 border-t border-gray-200">
+                        <p class="text-sm font-bold text-gray-800 mb-1">📝 해설:</p>
+                        <p class="text-sm text-gray-600 leading-relaxed">${item.explanation}</p>
+                    </div>
+                `;
+                reviewItems.appendChild(itemDiv);
+            });
+            
+            // 점수판 초기화 (복습 모드에서는 점수 무의미)
+            scoreDisplay.textContent = `0 / ${reviewData.length}`;
+            totalQuestions = reviewData.length;
+        }
+
+
+        // =================================================================
+        // API 및 퀴즈 로직 관련 함수
+        // =================================================================
+
+        /**
+         * 지수 백오프를 구현하는 Fetch 함수입니다.
+         * @param {string} url - API URL
+         * @param {object} options - Fetch 옵션 (method, headers, body 등)
+         * @param {number} retries - 남은 재시도 횟수
+         * @returns {Promise<Response>} Fetch 응답
+         */
+        async function fetchWithBackoff(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status === 429 && i < retries - 1) { // Too Many Requests
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`);
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        /**
+         * Gemini API를 호출하여 퀴즈 데이터를 생성하고 가져옵니다. (API 실패 시 정적 데이터 폴백)
+         * @returns {Promise<Array>} 퀴즈 데이터 배열을 포함하는 프로미스
+         */
+        async function generateQuizData() {
+            // 시스템 프롬프트: 5개의 퀴즈를 요청하도록 설정되어 있음
+            const systemPrompt = "당신은 한국의 법률 전문가입니다. 일상생활과 관련된 한국 법률 상식에 대한 5개의 3지선다형 퀴즈를 생성해주세요. 질문, 3개의 선택지(1, 2, 3으로 시작), 정답 번호, 상세 해설을 포함해야 합니다. 생성된 내용은 제공된 JSON 스키마를 엄격히 따르세요.";
+            const userQuery = "한국 법률 상식에 대한 새로운 3지선다 퀴즈 5개를 생성해줘.";
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "question": { "type": "STRING", "description": "법률 상식 질문." },
+                                "options": {
+                                    "type": "ARRAY",
+                                    "items": { "type": "STRING" },
+                                    "description": "반드시 '1. [선택지]', '2. [선택지]', '3. [선택지]' 형식의 3개 선택지여야 합니다."
+                                },
+                                "answer": { "type": "STRING", "description": "정답 선택지의 번호 ('1', '2', 또는 '3')." },
+                            "explanation": { "type": "STRING", "description": "정답에 대한 상세한 법률 해설." }
+                            },
+                            "propertyOrdering": ["question", "options", "answer", "explanation"]
+                        }
+                    }
+                }
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                const candidate = result.candidates?.[0];
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const jsonString = candidate.content.parts[0].text;
+                    const parsedJson = JSON.parse(jsonString);
+                    
+                    if (Array.isArray(parsedJson) && parsedJson.every(q => q.options && q.options.length === 3)) {
+                        return parsedJson;
+                    } else {
+                        console.warn("[퀴즈 생성 경고] API에서 유효하지 않은 데이터 구조를 반환했습니다. 정적 데이터로 대체합니다.");
+                        return STATIC_QUIZ_DATA;
+                    }
+                } else {
+                    console.warn("[퀴즈 생성 경고] API 응답에서 콘텐츠를 찾을 수 없습니다. 정적 데이터로 대체합니다.");
+                    return STATIC_QUIZ_DATA;
+                }
+            } catch (error) {
+                console.error("[퀴즈 생성 오류] Gemini API 호출 오류로 정적 데이터로 대체합니다:", error);
+                
+                await new Promise(resolve => setTimeout(resolve, 1500)); 
+                return STATIC_QUIZ_DATA;
+            }
+        }
+
+        /**
+         * 퀴즈를 초기화하고 첫 문제를 설정합니다.
+         * @param {boolean} startReviewMode - 복습 모드로 시작할지 여부
+         */
+        async function initializeQuiz(startReviewMode = false) {
+            isReviewMode = startReviewMode;
+            score = 0;
+            isAnswered = false;
+
+            if (isReviewMode) {
+                // 복습 모드 (목록형 뷰)
+                
+                quizBox.classList.add('hidden');
+                answerButtonsContainer.classList.add('hidden');
+                btnNext.textContent = "일반 모드로 돌아가기";
+                btnNext.disabled = false;
+                btnReviewMode.classList.add('hidden');
+                hideFeedback();
+                
+                renderReviewList();
+            } else {
+                // 일반 모드 (퀴즈 모드)
+                
+                availableQuestions = []; 
+                totalQuestions = 0; 
+                updateScoreDisplay(); 
+                
+                // 버그 수정: 새 퀴즈 생성 시 이전 최종 점수 메시지 초기화
+                questionText.textContent = "퀴즈를 시작하려면 '시작하기' 버튼을 누르세요."; 
+                
+                showLoading(); 
+                
+                reviewListContainer.classList.add('hidden');
+
+                const MIN_UNIQUE_QUESTIONS_TARGET = 3; // 최소한 3개 이상의 새로운 문제를 확보하도록 시도
+                const MAX_API_RETRIES = 3; // API 호출 재시도 횟수
+                let attempt = 0;
+                let uniqueQuestionsFound = [];
+                let hasApiFailed = false; // API 호출 실패 여부 플래그
+                
+                const history = getAskedHistory();
+                const askedQuestionsSet = new Set(history);
+                
+                // 정적 데이터 질문 텍스트만 미리 추출해 Set에 넣어, 정적 데이터 중복을 피할 수 있게 합니다.
+                const staticQuestionTexts = new Set(STATIC_QUIZ_DATA.map(q => q.question.trim()));
+
+                // 새로운 문제를 찾기 위한 재시도 루프
+                while (attempt < MAX_API_RETRIES) {
+                    try {
+                        let quizData = await generateQuizData(); // API 호출 (또는 정적 데이터)
+                        
+                        // 정적 데이터가 아닌 경우, API가 실제로 응답했음을 가정
+                        if (quizData !== STATIC_QUIZ_DATA) {
+                            hasApiFailed = false;
+                        }
+
+                        // 이미 출제된 문제 필터링 (로컬 히스토리 기반)
+                        const newlyFilteredQuestions = quizData.filter(q => !askedQuestionsSet.has(q.question.trim()));
+                        
+                        // 현재까지 찾은 고유한 문제 목록에 추가 (중복 검사를 통해 중복 누적 방지)
+                        const currentUniqueTexts = new Set(uniqueQuestionsFound.map(q => q.question.trim()));
+                        
+                        newlyFilteredQuestions.forEach(q => {
+                            if (!currentUniqueTexts.has(q.question.trim())) {
+                                uniqueQuestionsFound.push(q);
+                                currentUniqueTexts.add(q.question.trim()); // 중복 검사용 Set에도 추가
+                            }
+                        });
+
+                        // 목표치 달성 확인
+                        if (uniqueQuestionsFound.length >= MIN_UNIQUE_QUESTIONS_TARGET) {
+                            // API 호출 성공 및 목표치 달성 시 루프 종료
+                            console.log(`[퀴즈 생성 성공] ${attempt + 1}회 시도만에 ${uniqueQuestionsFound.length}개의 새로운 문제를 확보했습니다.`);
+                            break; 
+                        }
+                    } catch (error) {
+                        console.error("[퀴즈 생성 실패] API 재시도 중 오류 발생:", error);
+                        hasApiFailed = true;
+                    }
+                    attempt++;
+                }
+                
+                // 3번 시도 후에도 목표치에 도달하지 못했거나, API가 실패한 경우, 정적 데이터를 강제로 추가합니다.
+                if (uniqueQuestionsFound.length < MIN_UNIQUE_QUESTIONS_TARGET || hasApiFailed) {
+                    console.warn(`[최종 대체] API를 통해 ${uniqueQuestionsFound.length}개 확보. 정적 데이터에서 보충 시도.`);
+                    
+                    const currentUniqueTexts = new Set(uniqueQuestionsFound.map(q => q.question.trim()));
+                    
+                    STATIC_QUIZ_DATA.forEach(q => {
+                        // 정적 데이터이면서 로컬 히스토리에 없고, 현재 확보한 목록에도 없는 경우에만 추가
+                        if (!askedQuestionsSet.has(q.question.trim()) && !currentUniqueTexts.has(q.question.trim())) {
+                            uniqueQuestionsFound.push(q);
+                            currentUniqueTexts.add(q.question.trim());
+                        }
+                    });
+                }
+                
+                availableQuestions = uniqueQuestionsFound;
+                totalQuestions = availableQuestions.length; 
+                
+                // ⭐ 출제된 문제 기록 업데이트
+                if (totalQuestions > 0) {
+                    updateAskedHistory(availableQuestions);
+                }
+
+
+                btnNext.textContent = "다음 문제";
+                setAnswerButtonsEnabled(true);
+                
+                if (totalQuestions === 0) {
+                    if (history.length >= STATIC_QUIZ_DATA.length) {
+                         questionText.textContent = "죄송합니다. 현재 앱에 등록된 모든 문제를 다 풀었습니다. 캐시를 지우거나 나중에 다시 시도하면 새로운 문제가 생성될 수 있습니다.";
+                    } else if (hasApiFailed) {
+                        questionText.textContent = `오류 발생: 퀴즈 생성에 실패했습니다. (API 오류)`;
+                    } else {
+                        questionText.textContent = "새로운 문제가 없습니다. 잠시 후 다시 시도하거나, 캐시를 지우면 더 광범위한 새 문제를 볼 수 있습니다.";
+                    }
+                    btnNext.textContent = "다시 시작";
+                    setAnswerButtonsEnabled(false);
+                } else {
+                    loadRandomQuestion();
+                }
+
+                hideLoading();
+            }
+            
+            if (!isReviewMode || availableQuestions.length > 0) {
+                 updateScoreDisplay(); 
+            }
+            updateReviewModeUI();
+            
+            if (!isReviewMode) {
+                btnReviewMode.classList.toggle('hidden', getReviewQuestions().length === 0);
+            }
+        }
+
+        /**
+         * 답변 버튼 활성화/비활성화 상태를 설정하고 배경색을 초기화합니다.
+         * @param {boolean} enabled - true면 활성화, false면 비활성화
+         */
+        function setAnswerButtonsEnabled(enabled) {
+            choiceButtons.forEach(button => {
+                button.element.disabled = !enabled;
+                // 배경색 초기화
+                button.element.classList.remove('btn-correct', 'btn-incorrect', 'btn-subdued');
+                button.element.classList.add('btn-choice'); 
+            });
+        }
+
+        /**
+         * 점수 표시를 업데이트합니다.
+         */
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `${score} / ${totalQuestions}`; // 총 문제 수 포함
+        }
+
+        /**
+         * 랜덤으로 문제를 불러와 화면에 표시합니다.
+         */
+        function loadRandomQuestion() {
+
+            hideFeedback();
+            isAnswered = false;
+            setAnswerButtonsEnabled(true);
+            
+            btnNext.disabled = true; 
+
+            if (availableQuestions.length === 0) {
+                showQuizEndMessage();
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+            currentQuestion = availableQuestions[randomIndex];
+            
+            // 출제된 문제를 목록에서 제거 (복습 모드에서도 동일하게 적용하여 문제 순환)
+            availableQuestions.splice(randomIndex, 1);
+
+            questionText.textContent = `Q. ${currentQuestion.question}`;
+            choiceButtons.forEach((button, index) => {
+                button.element.textContent = currentQuestion.options[index];
+            });
+            
+            // 퀴즈 UI 표시
+            quizBox.classList.remove('hidden');
+            questionText.classList.remove('hidden');
+            answerButtonsContainer.classList.remove('hidden');
+        }
+
+        /**
+         * 사용자의 답변을 체크하고 피드백을 표시합니다.
+         * @param {string} userAnswerChoice - 사용자가 선택한 선택지의 번호 ('1', '2', '3')
+         * @param {HTMLElement} userButton - 사용자가 누른 버튼 엘리먼트
+         */
+        function checkAnswer(userAnswerChoice, userButton) {
+            if (isAnswered || !currentQuestion) return; 
+            
+            isAnswered = true;
+            setAnswerButtonsEnabled(false); 
+            btnNext.disabled = false; 
+
+            const isCorrect = (userAnswerChoice === currentQuestion.answer);
+            const correctAnswerIndex = parseInt(currentQuestion.answer) - 1;
+            const correctButton = choiceButtons[correctAnswerIndex].element;
+
+            // 모든 버튼에서 초기화된 색상 제거
+            choiceButtons.forEach(button => {
+                button.element.classList.remove('btn-choice');
+                button.element.classList.remove('btn-subdued'); // Subdued 스타일도 제거
+            });
+
+            if (isCorrect) {
+                score++;
+                updateScoreDisplay();
+                showFeedback(true, "정답입니다! 🎉");
+                userButton.classList.add('btn-correct');
+                
+                // 정답 선택 시, 정답 버튼을 제외한 나머지 버튼을 흐릿하게 처리합니다.
+                choiceButtons.forEach(button => {
+                    if (button.element !== userButton) {
+                        button.element.classList.add('btn-subdued');
+                    }
+                });
+                
+                // 복습 모드인 경우, 맞춘 문제는 로컬 스토리지에서도 제거
+                if (isReviewMode) {
+                    let questions = getReviewQuestions();
+                    // 현재 문제와 question 필드가 일치하지 않는 문제들만 필터링하여 다시 저장
+                    const newQuestions = questions.filter(q => q.question.trim() !== currentQuestion.question.trim());
+                    localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(newQuestions));
+                    updateReviewModeUI();
+                }
+            } else {
+                showFeedback(false, `오답입니다. 😥 정답은 '${correctButton.textContent}'입니다.`);
+                userButton.classList.add('btn-incorrect'); // 사용자가 선택한 오답은 빨간색
+                correctButton.classList.add('btn-correct'); // 정답은 녹색
+                
+                // 오답 선택 시, 선택하지 않은 나머지 한 개의 버튼도 흐릿하게 처리합니다.
+                choiceButtons.forEach(button => {
+                    if (button.element !== userButton && button.element !== correctButton) {
+                        button.element.classList.add('btn-subdued');
+                    }
+                });
+                
+                // 일반 모드인 경우, 틀린 문제는 로컬 스토리지에 저장하여 복습 문제로 만듭니다.
+                if (!isReviewMode) {
+                    saveIncorrectQuestion(currentQuestion);
+                }
+            }
+
+            // 해설 표시
+            explanationText.textContent = `[해설] ${currentQuestion.explanation}`;
+        }
+
+        /**
+         * 피드백 메시지를 화면에 표시합니다.
+         */
+        function showFeedback(isCorrect, message) {
+            
+            // 이전 색상/테두리 클래스 및 hidden 상태 제거 (green/teal/red 모두 제거)
+            feedbackContainer.classList.remove(
+                'hidden', 
+                'bg-red-100', 'border-red-400', 
+                'bg-green-100', 'border-green-400',
+                'bg-teal-100', 'border-teal-400'
+            );
+            
+            // 피드백 메시지 텍스트 색상 클래스도 확실히 제거
+            feedbackMessage.classList.remove('text-red-700', 'text-green-700', 'text-teal-700');
+            
+            let colorClass, borderColorClass, messageColorClass;
+            
+            if (isCorrect) {
+                // 정답: 주 테마인 청록색(Teal) 계열 사용
+                colorClass = 'bg-teal-100';
+                borderColorClass = 'border-teal-400';
+                messageColorClass = 'text-teal-700';
+            } else {
+                // 오답: 경고색인 빨간색(Red) 계열 사용
+                colorClass = 'bg-red-100';
+                borderColorClass = 'border-red-400';
+                messageColorClass = 'text-red-700';
+            }
+
+            // 피드백 컨테이너에 클래스 적용
+            feedbackContainer.classList.add(colorClass, borderColorClass, 'border');
+            
+            // 피드백 메시지에 클래스 적용
+            feedbackMessage.classList.add(messageColorClass);
+            
+            feedbackMessage.textContent = message;
+        }
+
+        /**
+         * 피드백 메시지 영역을 숨깁니다.
+         */
+        function hideFeedback() {
+            feedbackContainer.classList.add('hidden');
+        }
+
+        /**
+         * 퀴즈 종료 메시지를 표시합니다.
+         */
+        function showQuizEndMessage() {
+            questionText.textContent = `모든 문제를 다 풀었습니다! 최종 점수는 ${score} / ${totalQuestions}점입니다.`;
+            currentQuestion = null; 
+            setAnswerButtonsEnabled(false);
+            hideFeedback();
+            
+            if (isReviewMode) {
+                 btnNext.textContent = "일반 모드로 돌아가기";
+            } else {
+                 btnNext.textContent = "새 퀴즈 생성";
+                 updateReviewModeUI(); // 일반 모드 종료 시 복습 모드 버튼을 다시 표시할지 결정
+            }
+            btnNext.disabled = false;
+        }
+
+
+        // =================================================================
+        // 이벤트 리스너 설정
+        // =================================================================
+
+        // 3지선다 버튼 이벤트 리스너 설정
+        choiceButtons.forEach(buttonInfo => {
+            buttonInfo.element.addEventListener('click', () => {
+                if (currentQuestion) {
+                     checkAnswer(buttonInfo.choice, buttonInfo.element); 
+                }
+            });
+        });
+
+        // '다음 문제'/'시작하기'/'재시작' 버튼 클릭 이벤트
+        btnNext.addEventListener('click', () => {
+            const buttonText = btnNext.textContent.trim(); 
+
+            if (buttonText === "새 퀴즈 생성" || buttonText === "시작하기" || buttonText === "오류 발생" || buttonText === "일반 모드로 돌아가기" || buttonText === "다시 시작") {
+                // 복습 모드에서 돌아오거나 새로 시작할 때는 일반 모드(false)로 초기화
+                initializeQuiz(false); 
+            } else if (buttonText === "다음 문제" && !btnNext.disabled) {
+                loadRandomQuestion();
+            }
+        });
+
+        // 복습 모드 버튼 이벤트 추가
+        btnReviewMode.addEventListener('click', () => {
+            initializeQuiz(true);
+        });
+
+        // 초기 상태 설정
+        setAnswerButtonsEnabled(false);
+        updateScoreDisplay(); 
+        updateReviewModeUI(); // 복습 모드 문제 수 초기화 및 버튼 상태 설정
+
+    </script>
+</body>
+</html>
